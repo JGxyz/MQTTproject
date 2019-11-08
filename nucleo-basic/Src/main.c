@@ -473,6 +473,7 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 
 void example_do_connect(mqtt_client_t *client)
 {
+
   struct mqtt_connect_client_info_t ci;
   err_t err;
 
@@ -481,15 +482,15 @@ void example_do_connect(mqtt_client_t *client)
 
   /* Minimal amount of information required is client identifier, so set it here */
   ci.client_id = "lwip_test";
-	ip_addr_t *ip;
-	ipaddr_aton("255.255.255.255", ip);
+	ip_addr_t ip;
+	IP4_ADDR(&ip, 192, 168, 1, 210);
 
   /* Initiate client and connect to server, if this fails immediately an error code is returned
      otherwise mqtt_connection_cb will be called with connection result after attempting
      to establish a connection with the server.
      For now MQTT version 3.1.1 is always used */
 
-  err = mqtt_client_connect(client, ip, MQTT_PORT, mqtt_connection_cb, 0, &ci);
+  err = mqtt_client_connect(client, &ip, MQTT_PORT, mqtt_connection_cb, 0, &ci);
 
   /* For now just print the result code if something goes wrong */
   if(err != ERR_OK) {
@@ -500,6 +501,7 @@ void example_do_connect(mqtt_client_t *client)
 
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status)
 {
+	  printf("xxx1:\n");
   err_t err;
   if(status == MQTT_CONNECT_ACCEPTED) {
     printf("mqtt_connection_cb: Successfully connected\n");
@@ -520,6 +522,8 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
     example_do_connect(client);
   }
 }
+
+
 
 /* StartDefaultTask function */
 void StartDefaultTask(void const * argument)
@@ -546,16 +550,19 @@ void StartDefaultTask(void const * argument)
   xprintf("DHCP bound\n");
   displayOwnIp();
 
-  osThreadDef(netconn_thread, http_server_netconn_thread, osPriorityNormal, 0, 1024);
-  osThreadCreate(osThread(netconn_thread), NULL);
+  //osThreadDef(netconn_thread, http_server_netconn_thread, osPriorityNormal, 0, 1024);
+ // osThreadCreate(osThread(netconn_thread), NULL);
 
+  vTaskDelay(250);
 
   mqtt_client_t *client = mqtt_client_new();
     if(client != NULL) {
       example_do_connect(client);
     }
-    osDelay(1000);
+    osDelay(50000);
+
    mqtt_disconnect(client);
+	  printf("xxx2:\n");
 
 
   //MX_DriverVbusFS(0);
