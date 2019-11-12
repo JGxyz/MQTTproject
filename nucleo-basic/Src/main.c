@@ -59,8 +59,12 @@
 #include "term_io.h"
 #include "ansi.h"
 #include "usbh_platform.h"
-
 #include "lwip/api.h"
+#define BROKER_IP1 192
+#define BROKER_IP2 168
+#define BROKER_IP3 1
+#define BROKER_IP4 243
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -77,6 +81,14 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 void StartDefaultTask(void const * argument);
+static int inpub_id;
+void turn_led_on(int);
+void turn_led_off(int);
+void toggle_led(int, int);
+void handle_diode(char*);
+void example_do_connect(mqtt_client_t *client);
+static void mqtt_sub_request_cb(void *arg, err_t result);
+static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -119,8 +131,7 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   debug_init(&huart3);
-  xprintf(ANSI_BG_BLUE "Nucleo-144 project" ANSI_BG_DEFAULT "\n");
-  printf("Zwykly printf tez dziala\n");
+  xprintf(ANSI_BG_BLUE "MQTT project" ANSI_BG_DEFAULT "\n");
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -312,94 +323,10 @@ void displayOwnIp(void)
 		);
 }
 
-static char response[500];
 
-//based on available code examples
-static void http_server_serve(struct netconn *conn)
-{
-  struct netbuf *inbuf;
-  err_t recv_err;
-  char* buf;
-  u16_t buflen;
-
-  /* Read the data from the port, blocking if nothing yet there.
-   We assume the request (the part we care about) is in one netbuf */
-  recv_err = netconn_recv(conn, &inbuf);
-
-  if (recv_err == ERR_OK)
-  {
-    if (netconn_err(conn) == ERR_OK)
-    {
-      netbuf_data(inbuf, (void**)&buf, &buflen);
-
-      /* Is this an HTTP GET command? (only check the first 5 chars, since
-      there are other formats for GET, and we're keeping it very simple )*/
-      if ((buflen >=5) && (strncmp(buf, "GET /", 5) == 0))
-      {
-			response[0] = 0;
-
-			strcpy(response, "HTTP/1.1 200 OK\r\n\
-				Content-Type: text/html\r\n\
-				Connnection: close\r\n\r\n\
-				<!DOCTYPE HTML>\r\n");
-
-			strcat(response,"<title>Prosta strona WWW</title>");
-			strcat(response,"<h1>H1 Header</h1>");
-
-			strcat(response,"A to jest tekst na stronie");
-          netconn_write(conn, response, sizeof(response), NETCONN_NOCOPY);
-      }
-    }
-  }
-  /* Close the connection (server closes in HTTP) */
-  netconn_close(conn);
-
-  /* Delete the buffer (netconn_recv gives us ownership,
-   so we have to make sure to deallocate the buffer) */
-  netbuf_delete(inbuf);
-}
-
-
-//based on available code examples
-static void http_server_netconn_thread(void const *arg)
-{
-  struct netconn *conn, *newconn;
-  err_t err, accept_err;
-
-  xprintf("http_server_netconn_thread\n");
-
-  /* Create a new TCP connection handle */
-  conn = netconn_new(NETCONN_TCP);
-
-  if (conn!= NULL)
-  {
-    /* Bind to port 80 (HTTP) with default IP address */
-    err = netconn_bind(conn, NULL, 80);
-
-    if (err == ERR_OK)
-    {
-      /* Put the connection into LISTEN state */
-      netconn_listen(conn);
-
-      while(1)
-      {
-        /* accept any icoming connection */
-        accept_err = netconn_accept(conn, &newconn);
-        if(accept_err == ERR_OK)
-        {
-          /* serve connection */
-          http_server_serve(newconn);
-
-          /* delete connection */
-          netconn_delete(newconn);
-        }
-      }
-    }
-  }
-}
 
 /* USER CODE END 4 */
-/* Called when publish is complete either with sucess or failure */
+/* Called when publish is complete either with success or failure */
 static void mqtt_pub_request_cb(void *arg, err_t result)
 {
   if(result != ERR_OK) {
@@ -419,7 +346,6 @@ void example_publish(mqtt_client_t *client, void *arg)
   }
 }
 
-static int inpub_id;
 static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t flags)
 {
   printf("Incoming publish payload with length %d, flags %u\n", len, (unsigned int)flags);
@@ -435,7 +361,11 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
         printf("mqtt_incoming_data_cb: %s\n", (const char *)data);
       }
     } else if(inpub_id == 1) {
-      /* Call an 'A' function... */
+    	char * new_data = (char*)malloc(len+1 * sizeof(char));
+    	strncpy(new_data, (const char*)data, len);
+    	new_data[len] = '\0';
+    	printf("Diode: %s\n", new_data);
+    	handle_diode(new_data);
     } else {
       printf("mqtt_incoming_data_cb: Ignoring payload...\n");
     }
@@ -447,20 +377,16 @@ static void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t f
 static void mqtt_incoming_publish_cb(void *arg, const char *topic, u32_t tot_len)
 {
   printf("Incoming publish at topic %s with total length %u\n", topic, (unsigned int)tot_len);
-
   /* Decode topic string into a user defined reference */
   if(strcmp(topic, "print_payload") == 0) {
     inpub_id = 0;
-  } else if(topic[0] == 'A') {
-    /* All topics starting with 'A' might be handled at the same way */
-    inpub_id = 1;
+  } else if (strcmp(topic, "diode") == 0) {
+    /* Turn on/off diode */
+	 inpub_id = 1;
   } else {
-    /* For all other topics */
-    inpub_id = 2;
+	  inpub_id = 2;
   }
 }
-void example_do_connect(mqtt_client_t *client);
-static void mqtt_sub_request_cb(void *arg, err_t result);
 
 static void mqtt_sub_request_cb(void *arg, err_t result)
 {
@@ -469,7 +395,7 @@ static void mqtt_sub_request_cb(void *arg, err_t result)
      notifying user, retry subscribe or disconnect from server */
   printf("Subscribe result: %d\n", result);
 }
-static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status);
+
 
 void example_do_connect(mqtt_client_t *client)
 {
@@ -481,9 +407,9 @@ void example_do_connect(mqtt_client_t *client)
   memset(&ci, 0, sizeof(ci));
 
   /* Minimal amount of information required is client identifier, so set it here */
-  ci.client_id = "lwip_test";
-	ip_addr_t ip;
-	IP4_ADDR(&ip, 192, 168, 1, 210);
+   ci.client_id = "lwip_test";
+   ip_addr_t ip;
+   IP4_ADDR(&ip, BROKER_IP1, BROKER_IP2, BROKER_IP3, BROKER_IP4);
 
   /* Initiate client and connect to server, if this fails immediately an error code is returned
      otherwise mqtt_connection_cb will be called with connection result after attempting
@@ -501,7 +427,6 @@ void example_do_connect(mqtt_client_t *client)
 
 static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status)
 {
-	  printf("xxx1:\n");
   err_t err;
   if(status == MQTT_CONNECT_ACCEPTED) {
     printf("mqtt_connection_cb: Successfully connected\n");
@@ -510,7 +435,7 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
     mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb, mqtt_incoming_data_cb, arg);
 
     /* Subscribe to a topic named "subtopic" with QoS level 1, call mqtt_sub_request_cb with result */
-    err = mqtt_subscribe(client, "subtopic", 1, mqtt_sub_request_cb, arg);
+    err = mqtt_subscribe(client, "diode", 1, mqtt_sub_request_cb, arg);
 
     if(err != ERR_OK) {
       printf("mqtt_subscribe return: %d\n", err);
@@ -524,116 +449,96 @@ static void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection
 }
 
 
+void handle_dhcp() {
+	  xprintf("Obtaining address with DHCP...\n");
+
+	  struct dhcp *dhcp = netif_dhcp_data(&gnetif);
+	  do
+	  {
+	    //xprintf("dhcp->state = %02X\n",dhcp->state);
+	    vTaskDelay(250);
+	  }while(dhcp->state != 0x0A);
+
+	  //xprintf("DHCP bound\n");
+	  displayOwnIp();
+}
+
+void turn_led_on(int i){
+	if (i == 2)
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, GPIO_PIN_SET);
+	else if (i == 3)
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, GPIO_PIN_SET);
+}
+
+void turn_led_off(int i){
+	if (i == 2)
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, GPIO_PIN_RESET);
+	else if (i == 3)
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, GPIO_PIN_RESET);
+}
+
+void toggle_led(int i, int time){
+	for (int j=0; j<time; j++) {
+		turn_led_on(i);
+		osDelay(250);
+		turn_led_off(i);
+		osDelay(250);
+	}
+}
+
+void toggle_all(int time){
+	int i=2;
+	for (int j=0; j<time; j++) {
+			turn_led_on(i);
+			osDelay(250);
+			turn_led_off(i);
+			osDelay(250);
+			if (i == 2)
+				i = 3;
+			else
+				i = 2;
+		}
+}
+
+void handle_diode(char * data){
+	if (strcmp(data, "LD2 on") == 0){
+		turn_led_on(2);
+	} else if (strcmp(data, "LD2 off") == 0){
+		turn_led_off(2);
+	} else if (strcmp(data, "LD2 toggle") == 0){
+		toggle_led(2, 50);
+	} else if (strcmp(data, "LD3 on") == 0){
+		turn_led_on(3);
+	} else if (strcmp(data, "LD3 off") == 0){
+		turn_led_off(3);
+	} else if (strcmp(data, "LD3 toggle") == 0){
+		toggle_led(3, 50);
+	} else if (strcmp(data, "toggle all") == 0){
+		toggle_all(50);
+	}
+}
 
 /* StartDefaultTask function */
 void StartDefaultTask(void const * argument)
 {
-  /* init code for USB_HOST */
-  //MX_USB_HOST_Init();
-
   /* init code for LWIP */
   MX_LWIP_Init();
-
-  /* init code for FATFS */
-  //MX_FATFS_Init();
-
-  /* USER CODE BEGIN 5 */
-  xprintf("Obtaining address with DHCP...\n");
-
-  struct dhcp *dhcp = netif_dhcp_data(&gnetif);
-  do
-  {
-    xprintf("dhcp->state = %02X\n",dhcp->state);
-    vTaskDelay(250);
-  }while(dhcp->state != 0x0A);
-
-  xprintf("DHCP bound\n");
-  displayOwnIp();
-
-  //osThreadDef(netconn_thread, http_server_netconn_thread, osPriorityNormal, 0, 1024);
- // osThreadCreate(osThread(netconn_thread), NULL);
-
-  vTaskDelay(250);
+  handle_dhcp();
 
   mqtt_client_t *client = mqtt_client_new();
     if(client != NULL) {
       example_do_connect(client);
     }
-    osDelay(50000);
+    osDelay(5000);
 
-   mqtt_disconnect(client);
-	  printf("xxx2:\n");
+    //turn_led_on(2);
+    //turn_led_on(3);
 
+   while(1){
 
-  //MX_DriverVbusFS(0);
+   }
 
-  //xprintf("waiting for USB device...");
-//  do{
-//	  xprintf(".");
-//	  vTaskDelay(100);
-//  }while(Appli_state != APPLICATION_READY);
-//  xprintf("USB device ready!");
-
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(10);
-
-//    char key = inkey();
-//    switch(key)
-//    {
-//		case 'w':
-//		{
-//		  xprintf("write test\n");
-//		  FRESULT res;
-//		  UINT bw;
-//		  FIL file;
-//		  const char* text = "Linijka tekstu!\n";
-//		  xprintf("f_open... ");
-//		  res = f_open(&file,"0:/test.txt",FA_WRITE|FA_OPEN_APPEND);
-//		  xprintf("res=%d\n",res);
-//		  if(res) break;
-//		  xprintf("f_write... ");
-//		  res = f_write(&file,text,strlen(text),&bw);
-//		  xprintf("res=%d, bw=%d\n",res,bw);
-//		  f_close(&file);
-//		  break;
-//		}
-//
-//		case 'r':
-//		{
-//		  xprintf("read test!\n");
-//		  FIL file;
-//		  FRESULT res = f_open(&file,"0:/test.txt",FA_READ);
-//		  xprintf("f_open res=%d\n",res);
-//		  if(res) break;
-//
-//		  const uint32_t BUF_SIZE = 64;
-//		  char buf[BUF_SIZE];
-//
-//		  UINT br;
-//		  xprintf("reading file contents:\n");
-//		  do
-//		  {
-//			res = f_read(&file,buf,BUF_SIZE,&br);
-//
-//			if((res == FR_OK) && (br))
-//			{
-//			  xprintf("chunk:\n");
-//			  debug_dump(buf,br);
-//			}
-//			else
-//			{
-//			  xprintf("f_read res=%d\n",res);
-//			  break;
-//			}
-//		  }while(br>0);
-//		  f_close(&file);
-//		  break;
-//		}
-//    }
-  }
-  /* USER CODE END 5 */ 
+   //mqtt_disconnect(client);
 }
 
 /**
