@@ -455,7 +455,7 @@ void handle_dhcp() {
 	  struct dhcp *dhcp = netif_dhcp_data(&gnetif);
 	  do
 	  {
-	    //xprintf("dhcp->state = %02X\n",dhcp->state);
+	    xprintf("dhcp->state = %02X\n",dhcp->state);
 	    vTaskDelay(250);
 	  }while(dhcp->state != 0x0A);
 
