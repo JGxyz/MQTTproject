@@ -1,7 +1,7 @@
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
-#include "mystm.h"
-#include <stdlib.h> // pozbyć się tych calloców jakoś?
+#include "my_diodes.h"
+#include <stdlib.h>
 
 SPI_HandleTypeDef *hspi_ws2812b;
 ws2812b_color     *ws2812b_array;
@@ -21,6 +21,8 @@ void WS2812B_SetDiodeRGB(int16_t diode_id, uint8_t R, uint8_t G, uint8_t B)
 	ws2812b_array[diode_id].green = G;
 	ws2812b_array[diode_id].blue = B;
 }
+
+
 
 void all_color(int data) {
 	for(int i = 0; i < 10; ++i){
@@ -205,6 +207,47 @@ void my_own_sender(){
 //	print_buffer(buffer, (LED_NUMBERS+2) * 24);
 	HAL_SPI_Transmit_DMA(hspi_ws2812b, buffer, (LED_NUMBERS+3) * 24);
 	while(HAL_DMA_STATE_READY != HAL_DMA_GetState(hspi_ws2812b->hdmatx));
+}
+
+void all_colors() {
+	for(int i = 0; i < 10; ++i){ // blue
+		   	 WS2812B_SetDiodeRGB(i, 0,0,255);
+		   	 my_own_sender();
+		   	 osDelay(200);
+	}
+
+	for(int i = 0; i < 10; ++i){ // red
+			 WS2812B_SetDiodeRGB(i, 255,0,0);
+			 my_own_sender();
+			 osDelay(200);
+	}
+
+	for(int i = 0; i < 10; ++i){ // green
+			WS2812B_SetDiodeRGB(i, 0,255,0);
+			my_own_sender();
+			osDelay(200);
+	}
+
+}
+
+void red_green() {
+	for(int i = 0; i < 10; ++i){
+		if (i<5)
+			WS2812B_SetDiodeRGB(i, 0,255,0);
+		else
+			WS2812B_SetDiodeRGB(i, 255,0,0);
+	}
+	my_own_sender();
+	osDelay(500);
+	for(int i = 0; i < 10; ++i){
+			if (i>=5)
+				WS2812B_SetDiodeRGB(i, 0,255,0);
+						else
+							WS2812B_SetDiodeRGB(i, 255,0,0);
+	}
+	my_own_sender();
+	osDelay(500);
+
 }
 
 void print_diode_colors(){

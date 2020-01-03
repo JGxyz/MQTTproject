@@ -51,7 +51,7 @@
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
 #include "lwip.h"
-#include "mystm.h"
+#include "my_diodes.h"
 #include "dbgu.h"
 #include "term_io.h"
 #include "ansi.h"
@@ -70,16 +70,10 @@ static void MX_USART3_UART_Init(void);
 static void MX_SPI1_Init(void);
 void StartDefaultTask(void const * argument);
 
-extern struct netif gnetif;
 
-
-int main(void)
- {
-
+int main(void){
   HAL_Init();
-
   SystemClock_Config();
-
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART3_UART_Init();
@@ -88,17 +82,11 @@ int main(void)
   xprintf(ANSI_BG_BLUE "WS2812B" ANSI_BG_DEFAULT "\n");
   WS2812B_Init(&hspi1);
   HAL_Delay(200);
-
-
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 1024);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
- 
   osKernelStart();
-  
   while (1){}
 }
-
 
 void SystemClock_Config(void)
 {
@@ -192,24 +180,11 @@ static void MX_DMA_Init(void)
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
-        * Output
-        * EVENT_OUT
-        * EXTI
-     PA8   ------> USB_OTG_FS_SOF
-     PA9   ------> USB_OTG_FS_VBUS
-     PA10   ------> USB_OTG_FS_ID
-     PA11   ------> USB_OTG_FS_DM
-     PA12   ------> USB_OTG_FS_DP
-*/
 static void MX_GPIO_Init(void)
 {
 
   GPIO_InitTypeDef GPIO_InitStruct;
 
-  /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -217,39 +192,32 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD3_Pin|LD2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USB_PowerSwitchOn_GPIO_Port, USB_PowerSwitchOn_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : USER_Btn_Pin */
   GPIO_InitStruct.Pin = USER_Btn_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD3_Pin LD2_Pin */
   GPIO_InitStruct.Pin = LD3_Pin|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = USB_PowerSwitchOn_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(USB_PowerSwitchOn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_OverCurrent_Pin */
   GPIO_InitStruct.Pin = USB_OverCurrent_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USB_SOF_Pin USB_ID_Pin USB_DM_Pin USB_DP_Pin */
   GPIO_InitStruct.Pin = USB_SOF_Pin|USB_ID_Pin|USB_DM_Pin|USB_DP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -257,7 +225,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_VBUS_Pin */
   GPIO_InitStruct.Pin = USB_VBUS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -265,132 +232,18 @@ static void MX_GPIO_Init(void)
 
 }
 
-void displayOwnIp(void)
-{
-
-	xprintf(
-		"My IP: %d.%d.%d.%d\n",
-		ip4_addr1_16(netif_ip4_addr(&gnetif)),
-		ip4_addr2_16(netif_ip4_addr(&gnetif)),
-		ip4_addr3_16(netif_ip4_addr(&gnetif)),
-		ip4_addr4_16(netif_ip4_addr(&gnetif))
-		);
-}
-
-
-void handle_dhcp() {
-	  xprintf("Obtaining address with DHCP...\n");
-
-	  struct dhcp *dhcp = netif_dhcp_data(&gnetif);
-	    do
-	    {
-	      xprintf("dhcp->state = %02X\n",dhcp->state);
-	      vTaskDelay(250);
-	    }while(dhcp->state != 0x0A);
-
-	    xprintf("DHCP bound\n");
-	    displayOwnIp();
-}
-
-void all_colors() {
-	for(int i = 0; i < 10; ++i){
-//		   	 printf("Setting diode %d color to blue\n", i);
-		   	 WS2812B_SetDiodeRGB(i, 0,0,255);
-		   	 my_own_sender();
-		   	 osDelay(200);
-	}
-
-	for(int i = 0; i < 10; ++i){
-//			 printf("Setting diode %d color to red\n", i);
-			 WS2812B_SetDiodeRGB(i, 255,0,0);
-			 my_own_sender();
-			 osDelay(200);
-	}
-
-	for(int i = 0; i < 10; ++i){
-//			printf("Setting diode %d color to green\n", i);
-			WS2812B_SetDiodeRGB(i, 0,255,0);
-			my_own_sender();
-			osDelay(200);
-	}
-
-}
-
-void red_green() {
-	for(int i = 0; i < 10; ++i){
-		if (i<5)
-			WS2812B_SetDiodeRGB(i, 0,255,0);
-		else
-			WS2812B_SetDiodeRGB(i, 255,0,0);
-	}
-	my_own_sender();
-	osDelay(500);
-	for(int i = 0; i < 10; ++i){
-			if (i>=5)
-				WS2812B_SetDiodeRGB(i, 0,255,0);
-						else
-							WS2812B_SetDiodeRGB(i, 255,0,0);
-	}
-	my_own_sender();
-	osDelay(500);
-
-}
-
 void StartDefaultTask(void const * argument)
 {
+
   MX_LWIP_Init();
-  printf("After LWIP_INIT\n");
-
-//  WS2812B_SetDiodeRGB(0, 0,255,0);
-//  WS2812B_SetDiodeRGB(1, 0,255,0);
-//  WS2812B_SetDiodeRGB(2, 0,255,0);
-//  WS2812B_SetDiodeRGB(3, 0,255,0);
-//  WS2812B_SetDiodeRGB(4, 0,255,0);
-//  WS2812B_SetDiodeRGB(5, 0,0,255);
-//  WS2812B_SetDiodeRGB(6, 0,0,255);
-//  WS2812B_SetDiodeRGB(7, 0,0,255);
-//  WS2812B_SetDiodeRGB(8, 0,0,255);
-//  WS2812B_SetDiodeRGB(9, 0,0,255);
-//
-//  osDelay(4000);
-//
-//  printf("Buffer cleaned\n");
-//
-//  for(int i = 0; i < 9; ++i){
-//	 printf("Setting diode %d color to red\n", i);
-//	 WS2812B_SetDiodeRGB(i, 0,255,0);
-//	 my_own_sender();
-//	 osDelay(2000);
-//  }
-
-//  osDelay(2000);
-//  WS2812B_SetDiodeRGB(0, 0,255,0);
-//  WS2812B_SetDiodeRGB(1, 0,255,0);
-//  WS2812B_SetDiodeRGB(2, 0,255,0);
-//  WS2812B_SetDiodeRGB(3, 0,255,0);
-//  WS2812B_SetDiodeRGB(4, 0,255,0);
-//  WS2812B_SetDiodeRGB(5, 0,0,255);
-//  WS2812B_SetDiodeRGB(6, 0,0,255);
-//  WS2812B_SetDiodeRGB(7, 0,0,255);
-//  WS2812B_SetDiodeRGB(8, 0,0,255);
-//  WS2812B_SetDiodeRGB(9, 0,0,255);
-//  my_own_sender();
-
-//
   handle_dhcp();
-//
-    mqtt_client_t *client = mqtt_client_new();
-      if(client != NULL) {
-        example_do_connect(client);
-      }
-      osDelay(5000);
-
-
-     while(1){
-//    	 red_green();
-     }
+  mqtt_client_t *client = mqtt_client_new();
+  if(client != NULL) {
+	example_do_connect(client);
+  }
+  osDelay(5000);
+  while(1){}
 }
-
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {

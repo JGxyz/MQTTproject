@@ -6,7 +6,8 @@
 #define BROKER_IP3 1
 #define BROKER_IP4 243
 
-
+void displayOwnIp();
+void handle_dhcp();
 void turn_led_on(int);
 void turn_led_off(int);
 void toggle_led(int, int);

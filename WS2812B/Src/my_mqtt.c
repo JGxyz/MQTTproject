@@ -1,22 +1,52 @@
 #include "stm32f4xx_hal.h"
 #include "cmsis_os.h"
 #include "lwip.h"
+#include "my_diodes.h"
+#include "dbgu.h"
+#include "term_io.h"
 #include "my_mqtt.h"
-#include <string.h>
+#include "ansi.h"
 #include "lwip/api.h"
-#include "mystm.h"
+#include <string.h>
 
+extern struct netif gnetif;
 int inpub_id;
+
+void displayOwnIp()
+{
+
+	xprintf(
+		"My IP: %d.%d.%d.%d\n",
+		ip4_addr1_16(netif_ip4_addr(&gnetif)),
+		ip4_addr2_16(netif_ip4_addr(&gnetif)),
+		ip4_addr3_16(netif_ip4_addr(&gnetif)),
+		ip4_addr4_16(netif_ip4_addr(&gnetif))
+		);
+}
+
+void handle_dhcp() {
+	  xprintf("Obtaining address with DHCP...\n");
+
+	  struct dhcp *dhcp = netif_dhcp_data(&gnetif);
+	    do
+	    {
+	      xprintf("dhcp->state = %02X\n",dhcp->state);
+	      vTaskDelay(250);
+	    }while(dhcp->state != 0x0A);
+
+	    xprintf("DHCP bound\n");
+	    displayOwnIp();
+}
 
 void handle_diode(char * data){
 	all_color(parse_message(data));
 }
 
-void handle_blink(char * data){
+void handle_blink(char *data){
 	blink(parse_message(data));
 }
 
-void handle_change(char * data){
+void handle_change(char *data){
 	change(parse_message(data));
 }
 
@@ -166,7 +196,6 @@ void example_do_connect(mqtt_client_t *client)
     printf("mqtt_connect return %d\n", err);
   }
 }
-
 
 void mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status)
 {

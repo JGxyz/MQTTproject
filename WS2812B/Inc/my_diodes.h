@@ -1,5 +1,5 @@
-#ifndef MYSTM_H_
-#define MYSTM_H_
+#ifndef MY_DIODES_H_
+#define MY_DIODES_H_
 
 #define zero 0b11000000
 #define one 0b11111000
@@ -28,5 +28,8 @@ void print_diode_colors();
 void print_buffer(uint8_t* buffer, int length);
 void all_color(int);
 void blink();
+void all_colors();
+void red_green();
+void change(int);
 
 #endif
