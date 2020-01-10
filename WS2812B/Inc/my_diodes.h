@@ -31,5 +31,10 @@ void blink();
 void all_colors();
 void red_green();
 void change(int);
+void set_color(int,int);
+void all();
+void basic();
+void mixed();
+void three_dots_running(int);
 
 #endif

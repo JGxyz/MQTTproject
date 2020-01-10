@@ -22,6 +22,31 @@ void WS2812B_SetDiodeRGB(int16_t diode_id, uint8_t R, uint8_t G, uint8_t B)
 	ws2812b_array[diode_id].blue = B;
 }
 
+void three_dots_running(int color) {
+	int i = 0;
+	int change = 1;
+
+	for (int c = 0; c < 20; c++) {
+		for (int d = 0; d < LED_NUMBERS; d++) {
+			if (d == i || d == i+change*2 || d ==i+change*4)
+				set_color(color, d);
+			else
+				set_color(BLACK, d);
+		}
+		my_own_sender();
+		osDelay(130);
+		if (i+change*4 == LED_NUMBERS-1) {
+			i = LED_NUMBERS-1;
+			change = -1;
+			i += change;
+		} else if (i+change*4 == 0) {
+			i = 0;
+			change = 1;
+			i += change;
+		} else i+=change;
+	}
+}
+
 
 
 void all_color(int data) {
