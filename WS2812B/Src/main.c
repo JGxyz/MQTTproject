@@ -232,22 +232,20 @@ static void MX_GPIO_Init(void)
 
 }
 
+
 void StartDefaultTask(void const * argument)
 {
 
-//  MX_LWIP_Init();
-//  handle_dhcp();
-//  mqtt_client_t *client = mqtt_client_new();
-//  if(client != NULL) {
-//	example_do_connect(client);
-//  }
-//  osDelay(5000);
-  while(1){
-	  //blink(WHITE);
-	  three_dots_running(WHITE);
-	  three_dots_running(CYAN);
-	  three_dots_running(MAGENTA);
+  MX_LWIP_Init();
+  handle_dhcp();
+  mqtt_client_t *client = mqtt_client_new();
+  if(client != NULL) {
+	  mqtt_connect(client);
   }
+  HAL_Delay(5000);
+
+
+  while(1){ }
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)

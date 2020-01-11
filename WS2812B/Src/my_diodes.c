@@ -33,7 +33,7 @@ void three_dots_running(int color) {
 			else
 				set_color(BLACK, d);
 		}
-		my_own_sender();
+		signal_diodes();
 		osDelay(130);
 		if (i+change*4 == LED_NUMBERS-1) {
 			i = LED_NUMBERS-1;
@@ -62,7 +62,7 @@ void all_color(int data) {
 			 default: WS2812B_SetDiodeRGB(i, 0,0,0); break;
 			 }
 	}
-	my_own_sender();
+	signal_diodes();
 }
 
 void blink(int data){
@@ -83,12 +83,12 @@ void blink(int data){
 		for (int i = 0; i < 10; i++){
 			WS2812B_SetDiodeRGB(i, red, green, blue);
 		}
-		my_own_sender();
+		signal_diodes();
 		osDelay(400);
 		for (int i = 0; i < 10; i++){
 			WS2812B_SetDiodeRGB(i, 0, 0, 0);
 		}
-		my_own_sender();
+		signal_diodes();
 		osDelay(400);
 	}
 }
@@ -111,17 +111,17 @@ void mixed(){
 	all_color(BLACK);
 	for (int i = 0; i < 10; i++) {
 		set_color(MAGENTA, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(CYAN, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(YELLOW, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 }
@@ -130,17 +130,17 @@ void basic(){
 	all_color(BLACK);
 	for (int i = 0; i < 10; i++) {
 		set_color(RED, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(GREEN, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(BLUE, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 }
@@ -149,32 +149,32 @@ void all(){
 	all_color(BLACK);
 	for (int i = 0; i < 10; i++) {
 		set_color(RED, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(GREEN, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(BLUE, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(MAGENTA, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(CYAN, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 	for (int i = 0; i < 10; i++) {
 		set_color(YELLOW, i);
-		my_own_sender();
+		signal_diodes();
 		osDelay(300);
 	}
 }
@@ -189,9 +189,7 @@ void change(int data){
 	}
 }
 
-void my_own_sender(){
-//	print_diode_colors();
-
+void signal_diodes(){
 	for(uint8_t i = 0; i < 72; i++)
 		buffer[i] = 0x00;
 
@@ -229,7 +227,6 @@ void my_own_sender(){
 		}
 
 	}
-//	print_buffer(buffer, (LED_NUMBERS+2) * 24);
 	HAL_SPI_Transmit_DMA(hspi_ws2812b, buffer, (LED_NUMBERS+3) * 24);
 	while(HAL_DMA_STATE_READY != HAL_DMA_GetState(hspi_ws2812b->hdmatx));
 }
@@ -237,19 +234,19 @@ void my_own_sender(){
 void all_colors() {
 	for(int i = 0; i < 10; ++i){ // blue
 		   	 WS2812B_SetDiodeRGB(i, 0,0,255);
-		   	 my_own_sender();
+		   	 signal_diodes();
 		   	 osDelay(200);
 	}
 
 	for(int i = 0; i < 10; ++i){ // red
 			 WS2812B_SetDiodeRGB(i, 255,0,0);
-			 my_own_sender();
+			 signal_diodes();
 			 osDelay(200);
 	}
 
 	for(int i = 0; i < 10; ++i){ // green
 			WS2812B_SetDiodeRGB(i, 0,255,0);
-			my_own_sender();
+			signal_diodes();
 			osDelay(200);
 	}
 
@@ -262,7 +259,7 @@ void red_green() {
 		else
 			WS2812B_SetDiodeRGB(i, 255,0,0);
 	}
-	my_own_sender();
+	signal_diodes();
 	osDelay(500);
 	for(int i = 0; i < 10; ++i){
 			if (i>=5)
@@ -270,7 +267,7 @@ void red_green() {
 						else
 							WS2812B_SetDiodeRGB(i, 255,0,0);
 	}
-	my_own_sender();
+	signal_diodes();
 	osDelay(500);
 
 }

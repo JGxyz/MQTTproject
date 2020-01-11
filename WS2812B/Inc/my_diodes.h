@@ -10,7 +10,7 @@ enum Color {
 };
 
 enum Topic {
-	COLOR, BLINK, CHANGE, NONE
+	COLOR, BLINK, CHANGE, DOTS, NONE
 };
 
 enum Change {
@@ -21,13 +21,13 @@ typedef struct ws2812b_color {
 	uint8_t red, green, blue;
 } ws2812b_color;
 
-void my_own_sender();
+void signal_diodes();
 void WS2812B_Init(SPI_HandleTypeDef * spi_handler);
 void WS2812B_SetDiodeRGB(int16_t diode_id, uint8_t R, uint8_t G, uint8_t B);
 void print_diode_colors();
 void print_buffer(uint8_t* buffer, int length);
 void all_color(int);
-void blink();
+void blink(int);
 void all_colors();
 void red_green();
 void change(int);
