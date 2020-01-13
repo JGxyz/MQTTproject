@@ -99,7 +99,7 @@ void mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t flags)
 	char* parsed_data = get_data(data, len);
 	printf("Received data `%s`\n", parsed_data);
 	if(inpub_id == COLOR) {
-    	handle_diode(parsed_data);
+    	handle_color(parsed_data);
     } else if(inpub_id == BLINK) {
     	handle_blink(parsed_data);
     } else if(inpub_id == CHANGE) {
@@ -133,19 +133,6 @@ char* get_data(const u8_t *data, u16_t len)
 	return new_data;
 }
 
-int parse_topic(char *data){
-	if (strcmp(data, "color") == 0){
-		return COLOR;
-	} else if (strcmp(data, "blink") == 0){
-		return BLINK;
-	} else if (strcmp(data, "change") == 0){
-		return CHANGE;
-	} else if (strcmp(data, "dots") == 0){
-		return DOTS;
-	}
-	return NONE;
-}
-
 int parse_message(char *data) {
 	if (strcmp(data, "red") == 0){
 		return RED;
@@ -171,7 +158,7 @@ int parse_message(char *data) {
 	return BLACK;
 }
 
-void handle_diode(char *data){
+void handle_color(char *data){
 	all_color(parse_message(data));
 }
 

@@ -26,7 +26,7 @@ void three_dots_running(int color) {
 	int i = 0;
 	int change = 1;
 
-	for (int c = 0; c < 20; c++) {
+	for (int c = 0; c < 81; c++) {
 		for (int d = 0; d < LED_NUMBERS; d++) {
 			if (d == i || d == i+change*2 || d ==i+change*4)
 				set_color(color, d);
@@ -45,6 +45,11 @@ void three_dots_running(int color) {
 			i += change;
 		} else i+=change;
 	}
+
+	for (int i = 0; i < LED_NUMBERS; i++)
+		set_color(BLACK, i);
+	osDelay(130);
+	signal_diodes();
 }
 
 
